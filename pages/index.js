@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
 
 const meals = [
   { time: "08:00", name: "Café da manhã" },
@@ -19,47 +24,83 @@ const checklistItems = [
   "Leite integral", "Iogurte", "Mel e temperos"
 ];
 
-export default function Home() {
-  const [mealChecks, setMealChecks] = useState(Array(meals.length).fill(false));
-  const [itemChecks, setItemChecks] = useState(Array(checklistItems.length).fill(false));
+export default function DietaChecklistApp() {
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [mealChecksByDate, setMealChecksByDate] = useState({});
+  const [itemPurchases, setItemPurchases] = useState({});
+
+  useEffect(() => {
+    if (!mealChecksByDate[selectedDate]) {
+      setMealChecksByDate(prev => ({ ...prev, [selectedDate]: Array(meals.length).fill(false) }));
+    }
+  }, [selectedDate]);
 
   const toggleMeal = (index) => {
-    const newChecks = [...mealChecks];
-    newChecks[index] = !newChecks[index];
-    setMealChecks(newChecks);
+    setMealChecksByDate(prev => {
+      const updated = [...(prev[selectedDate] || Array(meals.length).fill(false))];
+      updated[index] = !updated[index];
+      return { ...prev, [selectedDate]: updated };
+    });
   };
 
-  const toggleItem = (index) => {
-    const newChecks = [...itemChecks];
-    newChecks[index] = !newChecks[index];
-    setItemChecks(newChecks);
+  const togglePurchase = (item) => {
+    setItemPurchases(prev => {
+      const current = prev[item];
+      const today = format(new Date(), 'yyyy-MM-dd');
+      return { ...prev, [item]: current ? null : today };
+    });
   };
+
+  const pendingItems = checklistItems.filter(item => !itemPurchases[item]);
 
   return (
-    <div style={{ padding: 20, fontFamily: 'sans-serif' }}>
-      <h1>Checklist de Refeições</h1>
-      {meals.map((meal, index) => (
-        <div key={index}>
-          <input
-            type="checkbox"
-            checked={mealChecks[index]}
-            onChange={() => toggleMeal(index)}
+    <div className="p-4 grid gap-6">
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-bold mb-2">Data de referência</h2>
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="mb-4"
           />
-          {meal.time} - {meal.name}
-        </div>
-      ))}
 
-      <h1 style={{ marginTop: 30 }}>Lista de Compras</h1>
-      {checklistItems.map((item, index) => (
-        <div key={index}>
-          <input
-            type="checkbox"
-            checked={itemChecks[index]}
-            onChange={() => toggleItem(index)}
-          />
-          {item}
-        </div>
-      ))}
+          <h2 className="text-xl font-bold mb-2">Checklist de Refeições ({selectedDate})</h2>
+          {meals.map((meal, index) => (
+            <div key={index} className="flex items-center space-x-2 mb-2">
+              <Checkbox checked={mealChecksByDate[selectedDate]?.[index] || false} onCheckedChange={() => toggleMeal(index)} />
+              <span>{meal.time} - {meal.name}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-bold mb-2">Lista de Compras</h2>
+          {checklistItems.map((item, index) => (
+            <div key={index} className="flex items-center space-x-2 mb-1">
+              <Checkbox checked={!!itemPurchases[item]} onCheckedChange={() => togglePurchase(item)} />
+              <span>{item} {itemPurchases[item] ? `(comprado em ${itemPurchases[item]})` : "(não comprado)"}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-bold mb-2">Lembretes de compras</h2>
+          {pendingItems.length === 0 ? (
+            <p>Você comprou todos os itens 🎉</p>
+          ) : (
+            <ul className="list-disc ml-6">
+              {pendingItems.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
